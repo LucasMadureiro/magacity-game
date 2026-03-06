@@ -92,3 +92,6 @@ Estrutura: HTML5
 Renderização: Emojis e Gradientes Dinâmicos
 
 Dica do Desenvolvedor: Cuidado ao expandir rápido demais. Uma cidade sem reserva financeira colapsa na primeira crise hídrica!
+
+👨‍💻 Autor
+Desenvolvido por Lucas Madureiro Matias - Licenciatura em Computação - UFRPE
