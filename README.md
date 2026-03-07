@@ -66,12 +66,19 @@ Expansão de Terrenos: A cidade é dividida em 9 distritos. Você começa no cen
 
 🏛️ Guia de Construções
 Tipo	Função	Impacto
+
 Residencial (🏠)	Abriga cidadãos e gera impostos.	Aumenta a demanda por empregos.
+
 Comercial (🏢)	Gera empregos leves e serviços.	Necessita de clientes por perto.
+
 Industrial (🏭)	Gera muitos empregos e lucro alto.	Produz Poluição (afasta moradores).
+
 Parques (🌳)	Aumenta o valor da terra e felicidade.	Ajuda prédios a evoluírem.
+
 Escolas (🎓)	Gera Pontos de Ciência (PC).	Melhora a qualidade da mão de obra.
+
 Energia/Água (⚡/💧)	Suporte básico de vida.	Essencial para o funcionamento da zona.
+
 
 🚀 Diferenciais da MegaCity 3.0
 Lore Única: Inclui referências culturais como o Festival Manguebeat e o Centro de Pesquisas LASER.
