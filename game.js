@@ -391,6 +391,124 @@ function sairParaMenu() {
     document.getElementById('panel-tools').classList.add('oculto');
 }
 
+// -------------------------------------------------------------
+// SISTEMA DE SAVE E LOAD (LOCALSTORAGE)
+// -------------------------------------------------------------
+function abrirModalSaves(modo) { 
+    modoSaveModal = modo; 
+    document.getElementById('titulo-saves').innerText = modo === 'salvar' ? "💾 Salvar a sua Cidade" : "📂 Carregar Cidade"; 
+    
+    let botoes = document.getElementById('saves-grid').querySelectorAll('button');
+    for(let i = 1; i <= 3; i++) {
+        let saveData = localStorage.getItem('megacity_save_' + i);
+        if(saveData) {
+            try {
+                let dados = JSON.parse(saveData);
+                let dinheiroStr = dados.recursos ? Math.floor(dados.recursos.dinheiro) : 0;
+                botoes[i-1].innerText = `Slot ${i}: R$ ${dinheiroStr} | ${dados.dataHora || 'Salvo'}`;
+            } catch(e) {
+                botoes[i-1].innerText = `Slot ${i}: Dados Corrompidos`;
+            }
+        } else {
+            botoes[i-1].innerText = `Slot ${i}: Vazio`;
+        }
+    }
+    
+    document.getElementById('modal-saves').classList.remove('escondido'); 
+} 
+
+function fecharModalSaves() { 
+    document.getElementById('modal-saves').classList.add('escondido'); 
+}
+
+function acaoSlot(slot) { 
+    if (modoSaveModal === 'salvar') {
+        salvarJogo(slot);
+    } else {
+        carregarJogo(slot);
+    }
+}
+
+function salvarJogo(slot) {
+    let dados = {
+        recursos: recursos,
+        taxas: taxas,
+        techs: techs,
+        setoresDesbloqueados: setoresDesbloqueados,
+        terreno: terreno,
+        predios: listaPredios.map(p => ({ tipo: p.tipo, x: p.x, y: p.y, indestrutivel: p.indestrutivel })),
+        dataHora: new Date().toLocaleString()
+    };
+    
+    localStorage.setItem('megacity_save_' + slot, JSON.stringify(dados));
+    alert('Cidade salva com sucesso no Slot ' + slot + '!');
+    fecharModalSaves();
+}
+
+function carregarJogo(slot) {
+    let saveData = localStorage.getItem('megacity_save_' + slot);
+    if (!saveData) {
+        alert('Este slot está vazio!');
+        return;
+    }
+    
+    let dados;
+    try { 
+        dados = JSON.parse(saveData); 
+    } catch(e) { 
+        alert('Erro ao ler o ficheiro de save!'); 
+        return; 
+    }
+    
+    recursos = dados.recursos || { dinheiro: 3000, saldo: 0, aprovacao: 50, isNoite: false, tickRelogio: 0, ciencia: 0 };
+    taxas = dados.taxas || { res: 10, com: 12, ind: 20 };
+    Object.assign(techs, dados.techs || {});
+    setoresDesbloqueados = dados.setoresDesbloqueados || ["1,1"];
+    terreno = dados.terreno || Array(LINHAS).fill().map(() => Array(COLUNAS).fill('vazio'));
+    
+    limparAgentes();
+    ocupacao = Array(LINHAS).fill().map(() => Array(COLUNAS).fill(false));
+    listaPredios = [];
+    document.getElementById('game-board').innerHTML = '<div id="ghost-cursor"></div>';
+    
+    document.body.classList.remove('tech-filtros', 'tech-ind40', 'tech-carbono_zero');
+    if (techs.filtros) document.body.classList.add('tech-filtros');
+    if (techs.ind40) document.body.classList.add('tech-ind40');
+    if (techs.carbono_zero) document.body.classList.add('tech-carbono_zero');
+    
+    document.getElementById('taxa-res').value = taxas.res; 
+    document.getElementById('taxa-com').value = taxas.com; 
+    document.getElementById('taxa-ind').value = taxas.ind;
+    
+    desenharTerrenoHtml();
+    desenharSetores();
+    centralizarCamera();
+    
+    if (dados.predios) {
+        dados.predios.forEach(p => {
+            construirPredioDireto(p.x, p.y, p.tipo, true);
+            listaPredios[listaPredios.length - 1].indestrutivel = p.indestrutivel;
+        });
+    }
+    
+    atualizarEstradas();
+    atualizarBotoesLiberados();
+    atualizarCustosUI();
+    
+    document.getElementById('tela-inicial').classList.add('oculto'); 
+    document.getElementById('panel-stats').classList.remove('oculto'); 
+    document.getElementById('viewport').classList.remove('oculto'); 
+    document.getElementById('panel-tools').classList.remove('oculto');
+    
+    jogoRodando = true;
+    jogoPausado = false;
+    
+    iniciarMotores();
+    atualizarUI();
+    fecharModalSaves();
+}
+// -------------------------------------------------------------
+
 function abrirModalRegras() { document.getElementById('modal-regras').classList.remove('escondido'); }
 function fecharModalRegras() { document.getElementById('modal-regras').classList.add('escondido'); }
 
@@ -481,20 +599,6 @@ function atualizarBotoesLiberados() {
             }); 
         } 
     }));
-}
-
-function abrirModalSaves(modo) { 
-    modoSaveModal = modo; 
-    document.getElementById('titulo-saves').innerText = modo === 'salvar' ? "💾 Salvar a sua Cidade" : "📂 Carregar Cidade"; 
-    document.getElementById('modal-saves').classList.remove('escondido'); 
-} 
-
-function fecharModalSaves() { 
-    document.getElementById('modal-saves').classList.add('escondido'); 
-}
-
-function acaoSlot(slot) { 
-    fecharModalSaves(); 
 }
 
 function moverFantasma(e) {
@@ -832,9 +936,6 @@ function atualizarTaxas() {
     document.getElementById('val-taxa-ind').innerText = taxas.ind;
 }
 
-// -------------------------------------------------------------
-// CORREÇÃO: FUNÇÃO DE INTERFACE (A cor vermelha do dinheiro!)
-// -------------------------------------------------------------
 function atualizarUI() {
     document.getElementById('periodo-dia').innerText = recursos.isNoite ? "🌙 Noite" : "🌞 Dia"; 
     document.body.classList.toggle('noite', recursos.isNoite);
@@ -843,14 +944,14 @@ function atualizarUI() {
     document.getElementById('taxa-escola').innerText = Math.floor(taxaEscolaridade * 100);
     document.getElementById('especializacao-cidade').innerText = especializacaoAtual; 
     
-    // CORREÇÃO: Dinheiro negativo agora fica vermelho!
+    // Feedback Financeiro: Vermelho se Dívida, Verde se Lucro
     let elDinheiro = document.getElementById('dinheiro');
     elDinheiro.innerText = Math.floor(recursos.dinheiro);
     if (recursos.dinheiro < 0) {
-        elDinheiro.style.color = "#e74c3c"; // Vermelho Alerta
+        elDinheiro.style.color = "#e74c3c"; // Vermelho
         elDinheiro.style.textShadow = "0 0 10px rgba(231,76,60,0.5)";
     } else {
-        elDinheiro.style.color = "#2ecc71"; // Verde Lucro
+        elDinheiro.style.color = "#2ecc71"; // Verde
         elDinheiro.style.textShadow = "0 0 10px rgba(46,204,113,0.3)";
     }
 
@@ -1163,9 +1264,6 @@ function motorTransito() {
     agentes = agentes.filter(a => !a.delete);
 }
 
-// -------------------------------------------------------------
-// CORREÇÃO: MOTOR DA ECONOMIA (A Blindagem da Aprovação!)
-// -------------------------------------------------------------
 function motorEconomia() {
     if (!jogoRodando || jogoPausado) return;
     
@@ -1443,13 +1541,12 @@ function motorEconomia() {
     let crimeRestante = Math.max(0, stats.crime - stats.forcaPolicial);
     let isEarlyGame = stats.adultos <= 50;
     
-    // CORREÇÃO: Blindagem da Aprovação no Early Game
+    // Blindagem da Aprovação no Early Game
     if (stats.adultos === 0) {
         feedbackAprovacaoMensagem = "👻 Cidade Fantasma"; 
         feedbackAprovacaoCor = "#bdc3c7";
     } else {
         
-        // Se for o início do jogo, anulamos as quedas de aprovação causadas por trânsito ou afins.
         if (isEarlyGame && deltaAprovacao < 0) {
             deltaAprovacao = 0; 
         }
@@ -1470,7 +1567,7 @@ function motorEconomia() {
             recursos.aprovacao -= 1;
             feedbackAprovacaoMensagem = "🏥 Faltam Hospitais!"; 
             feedbackAprovacaoCor = "#e74c3c";
-        } else if (recursos.dinheiro < 0 && !isEarlyGame) { // <-- CORREÇÃO: Não pune por dívida no Early Game
+        } else if (recursos.dinheiro < 0 && !isEarlyGame) { 
             recursos.aprovacao -= 2;
             feedbackAprovacaoMensagem = "💸 Prefeitura Falida!"; 
             feedbackAprovacaoCor = "#e74c3c";
@@ -1490,7 +1587,6 @@ function motorEconomia() {
                 feedbackAprovacaoMensagem = "🌱 Imunidade de Vila"; 
                 feedbackAprovacaoCor = "#f1c40f";
                 
-                // CORREÇÃO: Impede a aprovação de afundar abaixo de 50 no início, a menos que o prefeito seja sádico nos impostos
                 if (recursos.aprovacao < 50 && deltaImpostos >= 0) {
                     recursos.aprovacao = 50; 
                 }
