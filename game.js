@@ -832,6 +832,9 @@ function atualizarTaxas() {
     document.getElementById('val-taxa-ind').innerText = taxas.ind;
 }
 
+// -------------------------------------------------------------
+// CORREÇÃO: FUNÇÃO DE INTERFACE (A cor vermelha do dinheiro!)
+// -------------------------------------------------------------
 function atualizarUI() {
     document.getElementById('periodo-dia').innerText = recursos.isNoite ? "🌙 Noite" : "🌞 Dia"; 
     document.body.classList.toggle('noite', recursos.isNoite);
@@ -839,7 +842,18 @@ function atualizarUI() {
     document.getElementById('ciencia').innerText = Math.floor(recursos.ciencia); 
     document.getElementById('taxa-escola').innerText = Math.floor(taxaEscolaridade * 100);
     document.getElementById('especializacao-cidade').innerText = especializacaoAtual; 
-    document.getElementById('dinheiro').innerText = Math.floor(recursos.dinheiro);
+    
+    // CORREÇÃO: Dinheiro negativo agora fica vermelho!
+    let elDinheiro = document.getElementById('dinheiro');
+    elDinheiro.innerText = Math.floor(recursos.dinheiro);
+    if (recursos.dinheiro < 0) {
+        elDinheiro.style.color = "#e74c3c"; // Vermelho Alerta
+        elDinheiro.style.textShadow = "0 0 10px rgba(231,76,60,0.5)";
+    } else {
+        elDinheiro.style.color = "#2ecc71"; // Verde Lucro
+        elDinheiro.style.textShadow = "0 0 10px rgba(46,204,113,0.3)";
+    }
+
     document.getElementById('renda-impostos').innerText = Math.floor(stats.rendaImpostos); 
     document.getElementById('renda-exportacao').innerText = Math.floor(stats.rendaExportacao);
     document.getElementById('renda-turismo').innerText = Math.floor(stats.rendaTurismo); 
@@ -1149,6 +1163,9 @@ function motorTransito() {
     agentes = agentes.filter(a => !a.delete);
 }
 
+// -------------------------------------------------------------
+// CORREÇÃO: MOTOR DA ECONOMIA (A Blindagem da Aprovação!)
+// -------------------------------------------------------------
 function motorEconomia() {
     if (!jogoRodando || jogoPausado) return;
     
@@ -1426,12 +1443,17 @@ function motorEconomia() {
     let crimeRestante = Math.max(0, stats.crime - stats.forcaPolicial);
     let isEarlyGame = stats.adultos <= 50;
     
-    // A NOVA REGRA: Congelar aprovação se não há habitantes
+    // CORREÇÃO: Blindagem da Aprovação no Early Game
     if (stats.adultos === 0) {
         feedbackAprovacaoMensagem = "👻 Cidade Fantasma"; 
         feedbackAprovacaoCor = "#bdc3c7";
     } else {
-        // Se há povo, aplica bônus/penalidades e impostos
+        
+        // Se for o início do jogo, anulamos as quedas de aprovação causadas por trânsito ou afins.
+        if (isEarlyGame && deltaAprovacao < 0) {
+            deltaAprovacao = 0; 
+        }
+        
         recursos.aprovacao += deltaAprovacao; 
         recursos.aprovacao += deltaImpostos;  
 
@@ -1448,7 +1470,7 @@ function motorEconomia() {
             recursos.aprovacao -= 1;
             feedbackAprovacaoMensagem = "🏥 Faltam Hospitais!"; 
             feedbackAprovacaoCor = "#e74c3c";
-        } else if (recursos.dinheiro < 0) {
+        } else if (recursos.dinheiro < 0 && !isEarlyGame) { // <-- CORREÇÃO: Não pune por dívida no Early Game
             recursos.aprovacao -= 2;
             feedbackAprovacaoMensagem = "💸 Prefeitura Falida!"; 
             feedbackAprovacaoCor = "#e74c3c";
@@ -1467,6 +1489,11 @@ function motorEconomia() {
             if (isEarlyGame) {
                 feedbackAprovacaoMensagem = "🌱 Imunidade de Vila"; 
                 feedbackAprovacaoCor = "#f1c40f";
+                
+                // CORREÇÃO: Impede a aprovação de afundar abaixo de 50 no início, a menos que o prefeito seja sádico nos impostos
+                if (recursos.aprovacao < 50 && deltaImpostos >= 0) {
+                    recursos.aprovacao = 50; 
+                }
             }
         }
     }
