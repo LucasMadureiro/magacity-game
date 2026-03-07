@@ -2,6 +2,7 @@
 Bem-vindo ao cargo de Prefeito(a) Supremo(a). O City Manager é um simulador de gestão urbana e econômica desenvolvido em HTML5 e JavaScript puro, focado em estratégia real, microgerenciamento de recursos e evolução urbana dinâmica.
 
 Neste jogo, você não apenas constrói prédios; você gerencia a felicidade de uma população exigente, equilibra as contas públicas e lida com os desafios de uma metrópole viva.
+Confira aqui: https://lucasmadureiro.github.io/magacity-game/
 
 🎮 Como Jogar (Os Primeiros Passos)
 O jogo roda diretamente no seu navegador. O objetivo é expandir sua cidade, manter a aprovação alta e evitar a falência.
@@ -65,7 +66,7 @@ Expansão de Terrenos: A cidade é dividida em 9 distritos. Você começa no cen
 Árvore de Tecnologia: Gaste seus Pontos de Ciência (PC) gerados por escolas para desbloquear novas construções e bônus econômicos.
 
 🏛️ Guia de Construções
-Tipo	Função	Impacto
+Tipo / Função / Impacto
 
 Residencial (🏠)	Abriga cidadãos e gera impostos.	Aumenta a demanda por empregos.
 
