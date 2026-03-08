@@ -5,13 +5,14 @@ const LINHAS = SEC_H * 3;
 
 let ferramentaAtual = 'estrada';
 let jogoRodando = false; 
-let jogoPausado = false; // Usado apenas para modais (bloqueia cliques)
-let tempoPausado = false; // NOVA VARIÁVEL: Pausa Tática (permite construir, mas tempo não passa)
+let jogoPausado = false; 
+let tempoPausado = false; 
 let slotAtivo = null; 
 let modoSaveModal = 'carregar'; 
 let cooldownEventos = 350; 
 let isDragging = false; 
 let isRelocating = false; 
+let primeiraNoitePassou = false; // NOVA REGRA: Controla o Fim da Imunidade
 
 let scale = 1; 
 let panX = 0; 
@@ -102,6 +103,7 @@ const arvoreData = [
     ]}
 ];
 
+// REVISÃO 3.1: NERF DA ÁGUA E LIXO APLICADO AQUI (40 em vez de 50)
 const catalogo = {
     estrada: { custo: 10, w: 2, h: 2, icone: '', manutencao: 1},
     ponte: { custo: 50, w: 2, h: 2, icone: '', manutencao: 2 },
@@ -115,9 +117,9 @@ const catalogo = {
     industrial: { custo: 250, w: 4, h: 2, icone: '🏭', energiaConsumo: 2, aguaConsumo: 3, trabConsumo: 6, lixoConsumo: 4, manutencao: 15, poluicao: true },
     usina: { custo: 450, w: 3, h: 3, icone: '🏭', energiaGera: 40, manutencao: 35, poluicao: true },
     solar: { custo: 900, w: 3, h: 3, icone: '☀️', energiaGera: 60, manutencao: 20 },
-    agua: { custo: 350, w: 2, h: 2, icone: '💧', aguaGera: 50, manutencao: 25 },
-    aterro: { custo: 200, w: 3, h: 2, icone: '🗑️', lixoGera: 50, manutencao: 10, poluicao: true },
-    reciclagem: { custo: 700, w: 3, h: 3, icone: '♻️', lixoGera: 50, energiaConsumo: 2, aguaConsumo: 1, trabConsumo: 3, manutencao: 15 },
+    agua: { custo: 350, w: 2, h: 2, icone: '💧', aguaGera: 40, manutencao: 25 },
+    aterro: { custo: 200, w: 3, h: 2, icone: '🗑️', lixoGera: 40, manutencao: 10, poluicao: true },
+    reciclagem: { custo: 700, w: 3, h: 3, icone: '♻️', lixoGera: 40, energiaConsumo: 2, aguaConsumo: 1, trabConsumo: 3, manutencao: 15 },
     parque: { custo: 50, w: 2, h: 2, icone: '🌳', manutencao: 5 },
     terminal: { custo: 250, w: 3, h: 2, icone: '🚌', energiaConsumo: 1, aguaConsumo: 1, trabConsumo: 2, manutencao: 15 },
     escola: { custo: 400, w: 3, h: 2, icone: '🏫', vagasEscola: 25, pc: 0.2, energiaConsumo: 1, aguaConsumo: 1, trabConsumo: 3, manutencao: 25 },
@@ -128,18 +130,15 @@ const catalogo = {
     festival: { custo: 1200, w: 5, h: 4, icone: '🦀', energiaConsumo: 5, aguaConsumo: 2, trabConsumo: 5, manutencao: 45 }
 };
 
-// -------------------------------------------------------------
-// FUNÇÃO DA PAUSA TÁTICA
-// -------------------------------------------------------------
 function alternarTempo() {
     tempoPausado = !tempoPausado;
     let btn = document.getElementById('btn-tempo');
     if (tempoPausado) {
         btn.innerText = "▶️ RETOMAR TEMPO";
-        btn.style.background = "#e67e22"; // Laranja para chamar a atenção de que está pausado
+        btn.style.background = "#e67e22";
     } else {
         btn.innerText = "⏸️ PAUSAR";
-        btn.style.background = "#3498db"; // Azul normal
+        btn.style.background = "#3498db"; 
     }
 }
 
@@ -291,7 +290,6 @@ window.onload = () => {
             vp.style.cursor = 'grabbing'; 
             return; 
         }
-        // O botão esquerdo constrói. O jogoPausado bloqueia apenas quando há modais abertos.
         if (!jogoRodando || jogoPausado || e.button !== 0) return; 
         isDragging = true; 
         moverFantasma(e); 
@@ -370,8 +368,8 @@ function novoJogo() {
     feedbackAprovacaoMensagem = "👻 Cidade Fantasma"; 
     feedbackAprovacaoCor = "#bdc3c7";
     
-    // Reseta a Pausa Tática
     tempoPausado = false;
+    primeiraNoitePassou = false; // Reset da Imunidade
     let btn = document.getElementById('btn-tempo');
     if(btn) { btn.innerText = "⏸️ PAUSAR"; btn.style.background = "#3498db"; }
     
@@ -413,7 +411,7 @@ function sairParaMenu() {
 }
 
 // -------------------------------------------------------------
-// SISTEMA DE SAVE E LOAD (LOCALSTORAGE)
+// SISTEMA DE SAVE E LOAD
 // -------------------------------------------------------------
 function abrirModalSaves(modo) { 
     modoSaveModal = modo; 
@@ -434,7 +432,6 @@ function abrirModalSaves(modo) {
             botoes[i-1].innerText = `Slot ${i}: Vazio`;
         }
     }
-    
     document.getElementById('modal-saves').classList.remove('escondido'); 
 } 
 
@@ -443,11 +440,8 @@ function fecharModalSaves() {
 }
 
 function acaoSlot(slot) { 
-    if (modoSaveModal === 'salvar') {
-        salvarJogo(slot);
-    } else {
-        carregarJogo(slot);
-    }
+    if (modoSaveModal === 'salvar') salvarJogo(slot);
+    else carregarJogo(slot);
 }
 
 function salvarJogo(slot) {
@@ -458,6 +452,7 @@ function salvarJogo(slot) {
         setoresDesbloqueados: setoresDesbloqueados,
         terreno: terreno,
         predios: listaPredios.map(p => ({ tipo: p.tipo, x: p.x, y: p.y, indestrutivel: p.indestrutivel })),
+        primeiraNoitePassou: primeiraNoitePassou,
         dataHora: new Date().toLocaleString()
     };
     
@@ -468,26 +463,18 @@ function salvarJogo(slot) {
 
 function carregarJogo(slot) {
     let saveData = localStorage.getItem('megacity_save_' + slot);
-    if (!saveData) {
-        alert('Este slot está vazio!');
-        return;
-    }
+    if (!saveData) { alert('Este slot está vazio!'); return; }
     
     let dados;
-    try { 
-        dados = JSON.parse(saveData); 
-    } catch(e) { 
-        alert('Erro ao ler o ficheiro de save!'); 
-        return; 
-    }
+    try { dados = JSON.parse(saveData); } catch(e) { alert('Erro ao ler o ficheiro de save!'); return; }
     
     recursos = dados.recursos || { dinheiro: 3000, saldo: 0, aprovacao: 50, isNoite: false, tickRelogio: 0, ciencia: 0 };
     taxas = dados.taxas || { res: 10, com: 12, ind: 20 };
     Object.assign(techs, dados.techs || {});
     setoresDesbloqueados = dados.setoresDesbloqueados || ["1,1"];
     terreno = dados.terreno || Array(LINHAS).fill().map(() => Array(COLUNAS).fill('vazio'));
+    primeiraNoitePassou = dados.primeiraNoitePassou || false;
     
-    // Reseta a Pausa Tática ao carregar um save
     tempoPausado = false;
     let btn = document.getElementById('btn-tempo');
     if(btn) { btn.innerText = "⏸️ PAUSAR"; btn.style.background = "#3498db"; }
@@ -533,13 +520,12 @@ function carregarJogo(slot) {
     atualizarUI();
     fecharModalSaves();
 }
-// -------------------------------------------------------------
 
 function abrirModalRegras() { document.getElementById('modal-regras').classList.remove('escondido'); }
 function fecharModalRegras() { document.getElementById('modal-regras').classList.add('escondido'); }
 
 function abrirModalTech() { 
-    jogoPausado = true; // Este bloqueia o clique no mapa
+    jogoPausado = true; 
     document.getElementById('tech-pc-display').innerText = Math.floor(recursos.ciencia);
     let container = document.getElementById('tech-container'); 
     container.innerHTML = '';
@@ -973,10 +959,10 @@ function atualizarUI() {
     let elDinheiro = document.getElementById('dinheiro');
     elDinheiro.innerText = Math.floor(recursos.dinheiro);
     if (recursos.dinheiro < 0) {
-        elDinheiro.style.color = "#e74c3c"; // Vermelho Alerta
+        elDinheiro.style.color = "#e74c3c";
         elDinheiro.style.textShadow = "0 0 10px rgba(231,76,60,0.5)";
     } else {
-        elDinheiro.style.color = "#2ecc71"; // Verde Lucro
+        elDinheiro.style.color = "#2ecc71";
         elDinheiro.style.textShadow = "0 0 10px rgba(46,204,113,0.3)";
     }
 
@@ -1022,6 +1008,12 @@ function atualizarUI() {
     document.getElementById('alunos').innerText = stats.criancas;
     document.getElementById('leitos').innerText = stats.leitos; 
     document.getElementById('doentes').innerText = stats.doentes;
+
+    // REVISÃO 3.1: INFORMAÇÕES DE SEGURANÇA NA UI
+    document.getElementById('forca-policial').innerText = stats.forcaPolicial; 
+    let elCrime = document.getElementById('crime');
+    elCrime.innerText = stats.crime;
+    elCrime.style.color = stats.crime > stats.forcaPolicial ? "#e74c3c" : "#2ecc71";
 }
 
 function selecionarFerramenta(f) {
@@ -1106,21 +1098,7 @@ function encontrarCaminhoGPS(inicioPredio, fimPredio) {
     return null;
 }
 
-function gerarParticulaFumaca(predio) { 
-    if (jogoPausado || !jogoRodando || tempoPausado) return; 
-    
-    const board = document.getElementById('game-board'); 
-    const p = document.createElement('div'); 
-    p.className = 'fumaca-particle'; 
-    let sizePx = parseInt(getComputedStyle(document.body).getPropertyValue('--tamanho-celula')); 
-    
-    p.style.left = (predio.x + predio.w/2) * sizePx + 'px'; 
-    p.style.top = predio.y * sizePx + 'px'; 
-    
-    board.appendChild(p); 
-    setTimeout(() => p.remove(), 3000); 
-}
-
+// REVISÃO 3.1: PENALIDADE DA RODOVIA
 function calcularValorTerreno(p) {
     let valor = 10; 
     let distParque = Math.min(...listaPredios.filter(o => o.tipo === 'parque').map(o => distQuad(p, o))); 
@@ -1135,7 +1113,32 @@ function calcularValorTerreno(p) {
     if(distPol <= 5) valor += 15; 
     if(distPoluicao <= 4 && !techs.carbono_zero) valor -= 20; 
     
+    if (!p.indestrutivel) {
+        let coladoRodovia = listaPredios.some(v => v.indestrutivel && (v.tipo === 'estrada' || v.tipo === 'ponte') && distQuad(p, v) <= 1);
+        if (coladoRodovia) valor -= 5;
+    }
+
     return Math.floor(valor);
+}
+
+// REVISÃO 3.1: CENTRAL DE VERIFICAÇÃO DE POLUIÇÃO (Para Água e Casas)
+function estaPoluido(p) {
+    let raioPoluicao = techs.carbono_zero ? 0 : (techs.filtros ? 2 : 4); 
+    if (raioPoluicao === 0) return false;
+    
+    return listaPredios.some(ind => { 
+        if((ind.tipo === 'industrial' && !techs.ind40) || ind.tipo === 'usina' || ind.tipo === 'aterro') { 
+            let dist = distQuad(p, ind); 
+            if (dist <= raioPoluicao + (ind.tipo === 'usina' ? 1 : 0)) { 
+                if (techs.urbanismo_verde && p.tipo.includes('residencial')) { 
+                    let temParqueSalvador = listaPredios.some(pk => pk.tipo === 'parque' && distQuad(p, pk) <= 2 && distQuad(ind, pk) <= dist); 
+                    if (temParqueSalvador) return false; 
+                } 
+                return true; 
+            } 
+        } 
+        return false; 
+    }); 
 }
 
 function tentarUpgrade(p, novoTipo) {
@@ -1167,13 +1170,27 @@ function tentarUpgrade(p, novoTipo) {
     return true;
 }
 
+// REVISÃO 3.1: SISTEMA DE DOWNGRADE
+function executarDowngrade(p, novoTipo) {
+    let cat = catalogo[novoTipo];
+    p.tipo = novoTipo;
+    p.w = cat.w;
+    p.h = cat.h;
+    p.dom.className = `predio-render ${novoTipo}`;
+    p.dom.innerText = cat.icone;
+    
+    // Remove os carros associados ao prédio antigo
+    agentes.forEach(a => { if ((a.casa === p || a.trabalho === p) && a.carDom) a.carDom.remove(); });
+    agentes = agentes.filter(a => a.casa !== p && a.trabalho !== p);
+    
+    if(novoTipo === 'residencial') spawnAgentesExtras(p, 1);
+    atualizarCustosUI();
+}
+
 let ocupacaoVias = {}; 
 
-// -------------------------------------------------------------
-// MOTORES DO JOGO (Agora respeitam a Pausa Tática)
-// -------------------------------------------------------------
 function motorTransito() {
-    if (!jogoRodando || jogoPausado || tempoPausado) return; // <-- BLOQUEIO DE PAUSA TÁTICA
+    if (!jogoRodando || jogoPausado || tempoPausado) return;
     
     tickSemaforo++; 
     if (tickSemaforo >= 4) { 
@@ -1293,13 +1310,14 @@ function motorTransito() {
 }
 
 function motorEconomia() {
-    if (!jogoRodando || jogoPausado || tempoPausado) return; // <-- BLOQUEIO DE PAUSA TÁTICA
+    if (!jogoRodando || jogoPausado || tempoPausado) return;
     
     cooldownEventos--; 
     if (cooldownEventos <= 0 && Math.random() < 0.20) { dispararEvento(); return; }
     
     recursos.tickRelogio++; 
     if (recursos.tickRelogio >= (recursos.isNoite ? 20 : 100)) { 
+        if (!recursos.isNoite) primeiraNoitePassou = true; // REVISÃO 3.1: Fim da Imunidade
         recursos.isNoite = !recursos.isNoite; 
         recursos.tickRelogio = 0; 
     }
@@ -1393,11 +1411,18 @@ function motorEconomia() {
                     p.dom.classList.add('inativo'); 
                     p.dom.title = utilTooltip + (estGeral ? "⚠️ Rua isolada da Rodovia Central." : "⚠️ Sem acesso à rua!"); 
                     stats.despesaManutencao += (info.manutencao || 0) * 0.5;
-                } else { 
-                    p.dom.title = utilTooltip + "✅ Operando Normalmente"; 
-                    if (p.tipo === 'usina' || p.tipo === 'solar') { stats.despesaManutencao += info.manutencao; stats.energiaG += info.energiaGera; geradoresAtivos.push(p); } 
-                    else if (p.tipo === 'agua') { stats.despesaManutencao += info.manutencao; stats.aguaG += info.aguaGera; } 
-                    else if (p.tipo === 'aterro') { stats.despesaManutencao += info.manutencao; stats.lixoG += info.lixoGera; } 
+                } else {
+                    // REVISÃO 3.1: CONTAMINAÇÃO HÍDRICA
+                    if (p.tipo === 'agua' && estaPoluido(p)) {
+                        p.dom.classList.add('inativo', 'poluido');
+                        p.dom.title = utilTooltip + "☢️ ÁGUA CONTAMINADA!";
+                        stats.despesaManutencao += info.manutencao;
+                    } else {
+                        p.dom.title = utilTooltip + "✅ Operando Normalmente"; 
+                        if (p.tipo === 'usina' || p.tipo === 'solar') { stats.despesaManutencao += info.manutencao; stats.energiaG += info.energiaGera; geradoresAtivos.push(p); } 
+                        else if (p.tipo === 'agua') { stats.despesaManutencao += info.manutencao; stats.aguaG += info.aguaGera; } 
+                        else if (p.tipo === 'aterro') { stats.despesaManutencao += info.manutencao; stats.lixoG += info.lixoGera; } 
+                    }
                 }
             }
             if (p.tipo !== 'usina' && p.tipo !== 'solar' && p.tipo !== 'agua' && p.tipo !== 'aterro') { 
@@ -1433,22 +1458,9 @@ function motorEconomia() {
         let multTransito = sofreTransito ? 0.7 : 1.0; 
         let valTerreno = calcularValorTerreno(p); 
         let poluido = false; 
-        let raioPoluicao = techs.carbono_zero ? 0 : (techs.filtros ? 2 : 4); 
         
-        if (p.tipo.includes('residencial') && raioPoluicao > 0) { 
-            poluido = listaPredios.some(ind => { 
-                if((ind.tipo === 'industrial' && !techs.ind40) || ind.tipo === 'usina' || ind.tipo === 'aterro') { 
-                    let dist = distQuad(p, ind); 
-                    if (dist <= raioPoluicao + (ind.tipo === 'usina' ? 1 : 0)) { 
-                        if (techs.urbanismo_verde) { 
-                            let temParqueSalvador = listaPredios.some(pk => pk.tipo === 'parque' && distQuad(p, pk) <= 2 && distQuad(ind, pk) <= dist); 
-                            if (temParqueSalvador) return false; 
-                        } 
-                        return true; 
-                    } 
-                } 
-                return false; 
-            }); 
+        if (p.tipo.includes('residencial')) { 
+            poluido = estaPoluido(p);
         }
         
         let consT = info.trabConsumo || 0; 
@@ -1560,21 +1572,21 @@ function motorEconomia() {
     let valExportacao = Math.max(0, stats.energiaG - stats.energiaU) + Math.max(0, stats.aguaG - stats.aguaU); 
     stats.rendaExportacao = (techs.livre_comercio ? valExportacao * 2 : valExportacao) * (techs.logistica ? 1.2 : 1.0);
     
-    // ANÁLISE DE IMPOSTOS
+    // REVISÃO 3.1: MATEMÁTICA LENTA E SEM EFEITO ELÁSTICO
     let deltaImpostos = 0;
-    if (taxas.res < 8) deltaImpostos += 0.5; else if (taxas.res > 10) deltaImpostos -= 1;
-    if (taxas.com < 11) deltaImpostos += 0.5; else if (taxas.com > 15) deltaImpostos -= 1;
-    if (taxas.ind < 20) deltaImpostos += 0.5; else if (taxas.ind > 25) deltaImpostos -= 1;
+    if (taxas.res < 8) deltaImpostos += 0.1; else if (taxas.res > 10) deltaImpostos -= 1;
+    if (taxas.com < 11) deltaImpostos += 0.1; else if (taxas.com > 15) deltaImpostos -= 1;
+    if (taxas.ind < 20) deltaImpostos += 0.1; else if (taxas.ind > 25) deltaImpostos -= 1;
     
     let crimeRestante = Math.max(0, stats.crime - stats.forcaPolicial);
-    let isEarlyGame = stats.adultos <= 50;
+    let isEarlyGame = !primeiraNoitePassou; // A imunidade agora acaba na primeira noite
     
-    // Blindagem da Aprovação no Early Game
     if (stats.adultos === 0) {
         feedbackAprovacaoMensagem = "👻 Cidade Fantasma"; 
         feedbackAprovacaoCor = "#bdc3c7";
     } else {
         
+        // No Early Game, a aprovação simplesmente não cai por problemas estruturais
         if (isEarlyGame && deltaAprovacao < 0) {
             deltaAprovacao = 0; 
         }
@@ -1614,10 +1626,6 @@ function motorEconomia() {
             if (isEarlyGame) {
                 feedbackAprovacaoMensagem = "🌱 Imunidade de Vila"; 
                 feedbackAprovacaoCor = "#f1c40f";
-                
-                if (recursos.aprovacao < 50 && deltaImpostos >= 0) {
-                    recursos.aprovacao = 50; 
-                }
             }
         }
     }
@@ -1633,30 +1641,25 @@ function motorEconomia() {
 }
 
 function motorFisica() {
-    if (!jogoRodando || jogoPausado || tempoPausado) return; // <-- BLOQUEIO DE PAUSA TÁTICA
+    if (!jogoRodando || jogoPausado || tempoPausado) return; 
     
     listaPredios.forEach(p => {
         let valTerreno = calcularValorTerreno(p); 
         let poluido = false; 
-        let raioPoluicao = techs.carbono_zero ? 0 : (techs.filtros ? 2 : 4); 
         
-        if (p.tipo.includes('residencial') && raioPoluicao > 0) { 
-            poluido = listaPredios.some(ind => { 
-                if((ind.tipo === 'industrial' && !techs.ind40) || ind.tipo === 'usina' || ind.tipo === 'aterro') { 
-                    let dist = distQuad(p, ind); 
-                    if (dist <= raioPoluicao + (ind.tipo === 'usina' ? 1 : 0)) { 
-                        if (techs.urbanismo_verde) { 
-                            let temParqueSalvador = listaPredios.some(pk => pk.tipo === 'parque' && distQuad(p, pk) <= 2 && distQuad(ind, pk) <= dist); 
-                            if (temParqueSalvador) return false; 
-                        } 
-                        return true; 
-                    } 
-                } 
-                return false; 
-            }); 
+        if (p.tipo.includes('residencial')) { 
+            poluido = estaPoluido(p);
         }
         
-        if (!poluido) { 
+        // REVISÃO 3.1: DOWNGRADES (Se o valor do terreno afundar, os prédios de luxo entram em ruína)
+        if (p.tipo === 'residencial2' && valTerreno < 30) executarDowngrade(p, 'residencial');
+        else if (p.tipo === 'residencial3' && valTerreno < 55) executarDowngrade(p, 'residencial');
+        else if (p.tipo === 'residencial4' && valTerreno < 80) executarDowngrade(p, 'residencial');
+        else if (p.tipo === 'comercial2' && valTerreno < 25) executarDowngrade(p, 'comercial');
+        else if (p.tipo === 'comercial3' && valTerreno < 50) executarDowngrade(p, 'comercial');
+        
+        // UPGRADES
+        else if (!poluido) { 
             if (p.tipo === 'residencial' && techs.casa_grande && valTerreno >= 30 && Math.floor(recursos.aprovacao) >= 60) { 
                 if(tentarUpgrade(p, 'residencial2')) { } 
             } else if (p.tipo === 'residencial2' && techs.mansao && valTerreno >= 55 && Math.floor(recursos.aprovacao) >= 80) { 
