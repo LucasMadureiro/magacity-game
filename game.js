@@ -5,7 +5,8 @@ const LINHAS = SEC_H * 3;
 
 let ferramentaAtual = 'estrada';
 let jogoRodando = false; 
-let jogoPausado = false; 
+let jogoPausado = false; // Usado apenas para modais (bloqueia cliques)
+let tempoPausado = false; // NOVA VARIÁVEL: Pausa Tática (permite construir, mas tempo não passa)
 let slotAtivo = null; 
 let modoSaveModal = 'carregar'; 
 let cooldownEventos = 350; 
@@ -26,7 +27,6 @@ let idLoopTransito = null;
 let idLoopEconomia = null; 
 let idLoopFisica = null;
 
-// TAXAS PADRÃO INICIAIS (Na Zona Neutra)
 let recursos = { dinheiro: 3000, saldo: 0, aprovacao: 50, isNoite: false, tickRelogio: 0, ciencia: 0 };
 let taxas = { res: 10, com: 12, ind: 20 }; 
 let stats = { adultos:0, criancas:0, vagasTotais:0, trabalhadoresUsados:0, energiaG:0, energiaU:0, aguaG:0, aguaU:0, lixoG:0, lixoU:0, vagasEscola:0, leitos:0, forcaPolicial:0, doentes:0, crime:0, rendaImpostos:0, rendaExportacao:0, rendaTransporte:0, rendaTurismo:0, despesaManutencao:0, cienciaGerada: 0 };
@@ -127,6 +127,21 @@ const catalogo = {
     robotica: { custo: 1000, w: 4, h: 3, icone: '🤖', energiaConsumo: 4, aguaConsumo: 2, trabConsumo: 6, manutencao: 35 },
     festival: { custo: 1200, w: 5, h: 4, icone: '🦀', energiaConsumo: 5, aguaConsumo: 2, trabConsumo: 5, manutencao: 45 }
 };
+
+// -------------------------------------------------------------
+// FUNÇÃO DA PAUSA TÁTICA
+// -------------------------------------------------------------
+function alternarTempo() {
+    tempoPausado = !tempoPausado;
+    let btn = document.getElementById('btn-tempo');
+    if (tempoPausado) {
+        btn.innerText = "▶️ RETOMAR TEMPO";
+        btn.style.background = "#e67e22"; // Laranja para chamar a atenção de que está pausado
+    } else {
+        btn.innerText = "⏸️ PAUSAR";
+        btn.style.background = "#3498db"; // Azul normal
+    }
+}
 
 function getCustoDinamico(tipo) {
     let base = catalogo[tipo].custo; 
@@ -276,6 +291,7 @@ window.onload = () => {
             vp.style.cursor = 'grabbing'; 
             return; 
         }
+        // O botão esquerdo constrói. O jogoPausado bloqueia apenas quando há modais abertos.
         if (!jogoRodando || jogoPausado || e.button !== 0) return; 
         isDragging = true; 
         moverFantasma(e); 
@@ -353,6 +369,11 @@ function novoJogo() {
     cooldownEventos = 350;
     feedbackAprovacaoMensagem = "👻 Cidade Fantasma"; 
     feedbackAprovacaoCor = "#bdc3c7";
+    
+    // Reseta a Pausa Tática
+    tempoPausado = false;
+    let btn = document.getElementById('btn-tempo');
+    if(btn) { btn.innerText = "⏸️ PAUSAR"; btn.style.background = "#3498db"; }
     
     document.getElementById('taxa-res').value = taxas.res; 
     document.getElementById('taxa-com').value = taxas.com; 
@@ -466,6 +487,11 @@ function carregarJogo(slot) {
     setoresDesbloqueados = dados.setoresDesbloqueados || ["1,1"];
     terreno = dados.terreno || Array(LINHAS).fill().map(() => Array(COLUNAS).fill('vazio'));
     
+    // Reseta a Pausa Tática ao carregar um save
+    tempoPausado = false;
+    let btn = document.getElementById('btn-tempo');
+    if(btn) { btn.innerText = "⏸️ PAUSAR"; btn.style.background = "#3498db"; }
+
     limparAgentes();
     ocupacao = Array(LINHAS).fill().map(() => Array(COLUNAS).fill(false));
     listaPredios = [];
@@ -513,7 +539,7 @@ function abrirModalRegras() { document.getElementById('modal-regras').classList.
 function fecharModalRegras() { document.getElementById('modal-regras').classList.add('escondido'); }
 
 function abrirModalTech() { 
-    jogoPausado = true; 
+    jogoPausado = true; // Este bloqueia o clique no mapa
     document.getElementById('tech-pc-display').innerText = Math.floor(recursos.ciencia);
     let container = document.getElementById('tech-container'); 
     container.innerHTML = '';
@@ -944,14 +970,13 @@ function atualizarUI() {
     document.getElementById('taxa-escola').innerText = Math.floor(taxaEscolaridade * 100);
     document.getElementById('especializacao-cidade').innerText = especializacaoAtual; 
     
-    // Feedback Financeiro: Vermelho se Dívida, Verde se Lucro
     let elDinheiro = document.getElementById('dinheiro');
     elDinheiro.innerText = Math.floor(recursos.dinheiro);
     if (recursos.dinheiro < 0) {
-        elDinheiro.style.color = "#e74c3c"; // Vermelho
+        elDinheiro.style.color = "#e74c3c"; // Vermelho Alerta
         elDinheiro.style.textShadow = "0 0 10px rgba(231,76,60,0.5)";
     } else {
-        elDinheiro.style.color = "#2ecc71"; // Verde
+        elDinheiro.style.color = "#2ecc71"; // Verde Lucro
         elDinheiro.style.textShadow = "0 0 10px rgba(46,204,113,0.3)";
     }
 
@@ -1082,7 +1107,7 @@ function encontrarCaminhoGPS(inicioPredio, fimPredio) {
 }
 
 function gerarParticulaFumaca(predio) { 
-    if (jogoPausado || !jogoRodando) return; 
+    if (jogoPausado || !jogoRodando || tempoPausado) return; 
     
     const board = document.getElementById('game-board'); 
     const p = document.createElement('div'); 
@@ -1144,8 +1169,11 @@ function tentarUpgrade(p, novoTipo) {
 
 let ocupacaoVias = {}; 
 
+// -------------------------------------------------------------
+// MOTORES DO JOGO (Agora respeitam a Pausa Tática)
+// -------------------------------------------------------------
 function motorTransito() {
-    if (!jogoRodando || jogoPausado) return;
+    if (!jogoRodando || jogoPausado || tempoPausado) return; // <-- BLOQUEIO DE PAUSA TÁTICA
     
     tickSemaforo++; 
     if (tickSemaforo >= 4) { 
@@ -1265,7 +1293,7 @@ function motorTransito() {
 }
 
 function motorEconomia() {
-    if (!jogoRodando || jogoPausado) return;
+    if (!jogoRodando || jogoPausado || tempoPausado) return; // <-- BLOQUEIO DE PAUSA TÁTICA
     
     cooldownEventos--; 
     if (cooldownEventos <= 0 && Math.random() < 0.20) { dispararEvento(); return; }
@@ -1605,7 +1633,7 @@ function motorEconomia() {
 }
 
 function motorFisica() {
-    if (!jogoRodando || jogoPausado) return;
+    if (!jogoRodando || jogoPausado || tempoPausado) return; // <-- BLOQUEIO DE PAUSA TÁTICA
     
     listaPredios.forEach(p => {
         let valTerreno = calcularValorTerreno(p); 

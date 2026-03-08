@@ -20,9 +20,13 @@
     </div>
 
     <div id="panel-stats" class="side-panel oculto">
-        
         <div class="stats-container">
-            <p>🕒 Tempo: <span id="periodo-dia" class="dado-destaque">🌞 Dia</span></p>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
+                <p style="margin:0;">🕒 <span id="periodo-dia" class="dado-destaque">🌞 Dia</span></p>
+                <button id="btn-tempo" onclick="alternarTempo()" style="background: #3498db; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-family: var(--fonte-texto); transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.5);">⏸️ PAUSAR</button>
+            </div>
+
             <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; margin: 10px 0; text-align: center; border: 1px solid rgba(255,255,255,0.05);">
                 <p style="margin:0; font-size: 14px;">😊 Aprovação</p>
                 <p><span id="aprovacao" class="dado-sucesso" style="font-size:24px;">50</span><span style="font-size:18px; color:white; font-weight:bold;">%</span></p>
@@ -80,7 +84,7 @@
     </div>
 
     <div id="panel-tools" class="side-panel oculto">
-        <div class="ferramenta-aviso glass-box" id="ferramenta-atual">Ferramenta: ESTRADA</div>
+        <div class="ferramenta-aviso glass-box" id="ferramenta-atual" style="margin-top:0;">Ferramenta: ESTRADA</div>
         
         <div class="tools-grid">
             <button onclick="selecionarFerramenta('apagar')" style="flex: 1 1 100%; border-color: #ff7675; color: #ff7675;">🚜 TRATOR (Apagar)</button>
