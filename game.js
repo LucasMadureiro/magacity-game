@@ -12,7 +12,7 @@ let modoSaveModal = 'carregar';
 let cooldownEventos = 350; 
 let isDragging = false; 
 let isRelocating = false; 
-let primeiraNoitePassou = false; // NOVA REGRA: Controla o Fim da Imunidade
+let primeiraNoitePassou = false; 
 
 let scale = 1; 
 let panX = 0; 
@@ -81,7 +81,7 @@ const arvoreData = [
         { id: "plan_urbano", nome: "Planejamento Urbano", custo: 100, req: [], desc: "Estradas a metade do preço." },
         { id: "mansao", nome: "Condomínios", custo: 300, req: ["casa_grande"], desc: "Casas Grandes viram Mansões." },
         { id: "transp_publico", nome: "Transporte Público", custo: 400, req: ["plan_urbano"], desc: "Terminais dão aprovação." },
-        { id: "metropole_vertical", nome: "Metrópole Vertical", custo: 1200, req: ["mansao", "transp_publico"], desc: "Mansões viram Arranha-céus." }
+        { id: "metropole_vertical", nome: "Metrópole Vertical", custo: 1200, req: ["mansao", "transp_publico"], desc: "Prédios chegam ao Nível 4." }
     ]},
     { ramo: "🎓 Educação", cor: "#9b59b6", itens: [
         { id: "edu_basica", nome: "Educação Básica", custo: 80, req: [], desc: "Escola gera 1.0 PC em vez de 0.2 PC." },
@@ -103,7 +103,6 @@ const arvoreData = [
     ]}
 ];
 
-// REVISÃO 3.1: NERF DA ÁGUA E LIXO APLICADO AQUI (40 em vez de 50)
 const catalogo = {
     estrada: { custo: 10, w: 2, h: 2, icone: '', manutencao: 1},
     ponte: { custo: 50, w: 2, h: 2, icone: '', manutencao: 2 },
@@ -114,6 +113,8 @@ const catalogo = {
     comercial: { custo: 150, w: 2, h: 2, icone: '🏪', energiaConsumo: 2, aguaConsumo: 1, trabConsumo: 2, lixoConsumo: 2 },
     comercial2: { custo: 0, w: 2, h: 2, icone: '🛒', energiaConsumo: 3, aguaConsumo: 2, trabConsumo: 6, lixoConsumo: 3 },
     comercial3: { custo: 0, w: 2, h: 2, icone: '🏬', energiaConsumo: 5, aguaConsumo: 4, trabConsumo: 15, lixoConsumo: 6 },
+    // NOVO: COMÉRCIO NÍVEL 4
+    comercial4: { custo: 0, w: 2, h: 2, icone: '🏢', energiaConsumo: 12, aguaConsumo: 8, trabConsumo: 40, lixoConsumo: 15 },
     industrial: { custo: 250, w: 4, h: 2, icone: '🏭', energiaConsumo: 2, aguaConsumo: 3, trabConsumo: 6, lixoConsumo: 4, manutencao: 15, poluicao: true },
     usina: { custo: 450, w: 3, h: 3, icone: '🏭', energiaGera: 40, manutencao: 35, poluicao: true },
     solar: { custo: 900, w: 3, h: 3, icone: '☀️', energiaGera: 60, manutencao: 20 },
@@ -369,7 +370,7 @@ function novoJogo() {
     feedbackAprovacaoCor = "#bdc3c7";
     
     tempoPausado = false;
-    primeiraNoitePassou = false; // Reset da Imunidade
+    primeiraNoitePassou = false; 
     let btn = document.getElementById('btn-tempo');
     if(btn) { btn.innerText = "⏸️ PAUSAR"; btn.style.background = "#3498db"; }
     
@@ -410,9 +411,6 @@ function sairParaMenu() {
     document.getElementById('panel-tools').classList.add('oculto');
 }
 
-// -------------------------------------------------------------
-// SISTEMA DE SAVE E LOAD
-// -------------------------------------------------------------
 function abrirModalSaves(modo) { 
     modoSaveModal = modo; 
     document.getElementById('titulo-saves').innerText = modo === 'salvar' ? "💾 Salvar a sua Cidade" : "📂 Carregar Cidade"; 
@@ -1009,7 +1007,6 @@ function atualizarUI() {
     document.getElementById('leitos').innerText = stats.leitos; 
     document.getElementById('doentes').innerText = stats.doentes;
 
-    // REVISÃO 3.1: INFORMAÇÕES DE SEGURANÇA NA UI
     document.getElementById('forca-policial').innerText = stats.forcaPolicial; 
     let elCrime = document.getElementById('crime');
     elCrime.innerText = stats.crime;
@@ -1098,7 +1095,7 @@ function encontrarCaminhoGPS(inicioPredio, fimPredio) {
     return null;
 }
 
-// REVISÃO 3.1: PENALIDADE DA RODOVIA
+// REVISÃO 3.1.2: BÔNUS DE PARQUE E TERMINAL AUMENTADO
 function calcularValorTerreno(p) {
     let valor = 10; 
     let distParque = Math.min(...listaPredios.filter(o => o.tipo === 'parque').map(o => distQuad(p, o))); 
@@ -1106,11 +1103,13 @@ function calcularValorTerreno(p) {
     let distHosp = Math.min(...listaPredios.filter(o => o.tipo === 'hospital').map(o => distQuad(p, o))); 
     let distPol = Math.min(...listaPredios.filter(o => o.tipo === 'policia').map(o => distQuad(p, o))); 
     let distPoluicao = Math.min(...listaPredios.filter(o => o.tipo === 'usina' || o.tipo === 'aterro' || (o.tipo === 'industrial' && !techs.ind40)).map(o => distQuad(p, o)));
+    let distTerminal = Math.min(...listaPredios.filter(o => o.tipo === 'terminal').map(o => distQuad(p, o)));
     
-    if(distParque <= 4) valor += 15; 
+    if(distParque <= 4) valor += 20; // NOVO VALOR
     if(distEscola <= 6) valor += 20; 
     if(distHosp <= 6) valor += 15; 
     if(distPol <= 5) valor += 15; 
+    if(distTerminal <= 8) valor += 10; // NOVO BÔNUS
     if(distPoluicao <= 4 && !techs.carbono_zero) valor -= 20; 
     
     if (!p.indestrutivel) {
@@ -1121,7 +1120,6 @@ function calcularValorTerreno(p) {
     return Math.floor(valor);
 }
 
-// REVISÃO 3.1: CENTRAL DE VERIFICAÇÃO DE POLUIÇÃO (Para Água e Casas)
 function estaPoluido(p) {
     let raioPoluicao = techs.carbono_zero ? 0 : (techs.filtros ? 2 : 4); 
     if (raioPoluicao === 0) return false;
@@ -1170,7 +1168,6 @@ function tentarUpgrade(p, novoTipo) {
     return true;
 }
 
-// REVISÃO 3.1: SISTEMA DE DOWNGRADE
 function executarDowngrade(p, novoTipo) {
     let cat = catalogo[novoTipo];
     p.tipo = novoTipo;
@@ -1179,7 +1176,6 @@ function executarDowngrade(p, novoTipo) {
     p.dom.className = `predio-render ${novoTipo}`;
     p.dom.innerText = cat.icone;
     
-    // Remove os carros associados ao prédio antigo
     agentes.forEach(a => { if ((a.casa === p || a.trabalho === p) && a.carDom) a.carDom.remove(); });
     agentes = agentes.filter(a => a.casa !== p && a.trabalho !== p);
     
@@ -1317,7 +1313,7 @@ function motorEconomia() {
     
     recursos.tickRelogio++; 
     if (recursos.tickRelogio >= (recursos.isNoite ? 20 : 100)) { 
-        if (!recursos.isNoite) primeiraNoitePassou = true; // REVISÃO 3.1: Fim da Imunidade
+        if (!recursos.isNoite) primeiraNoitePassou = true; 
         recursos.isNoite = !recursos.isNoite; 
         recursos.tickRelogio = 0; 
     }
@@ -1346,7 +1342,7 @@ function motorEconomia() {
         });
     }
 
-    let locaisTrabalho = listaPredios.filter(p => temEstradaConectada(p) && ['comercial', 'comercial2', 'comercial3', 'industrial', 'robotica', 'escola', 'universidade', 'hospital', 'policia', 'terminal', 'reciclagem'].includes(p.tipo));
+    let locaisTrabalho = listaPredios.filter(p => temEstradaConectada(p) && ['comercial', 'comercial2', 'comercial3', 'comercial4', 'industrial', 'robotica', 'escola', 'universidade', 'hospital', 'policia', 'terminal', 'reciclagem'].includes(p.tipo));
     
     agentes.forEach(a => {
         if (a.estado === 'home' && !a.isTruck && !a.isDummy) { 
@@ -1382,7 +1378,7 @@ function motorEconomia() {
     let geradoresAtivos = []; 
     let deltaAprovacao = 0;
 
-    let nomesNiveis = { 'residencial': '🏠 Casa Nível 1', 'residencial2': '🏡 Casa Grande Nível 2', 'residencial3': '🏰 Mansão Nível 3', 'residencial4': '🏙️ Arranha-Céus Nível 4', 'comercial': '🏪 Mercadinho Nível 1', 'comercial2': '🛒 Mercado Nível 2', 'comercial3': '🏬 Shopping Nível 3', 'industrial': '🏭 Indústria', 'robotica': '🤖 Lab. de Robótica', 'escola': '🏫 Escola', 'universidade': '🎓 Universidade', 'hospital': '🏥 Hospital', 'policia': '🚓 Polícia', 'reciclagem': '♻️ Centro de Reciclagem', 'festival': '🦀 Festival Manguebeat', 'parque': '🌳 Parque Municipal', 'terminal': '🚌 Terminal' };
+    let nomesNiveis = { 'residencial': '🏠 Casa Nível 1', 'residencial2': '🏡 Casa Grande Nível 2', 'residencial3': '🏰 Mansão Nível 3', 'residencial4': '🏙️ Arranha-Céus Nível 4', 'comercial': '🏪 Mercadinho Nível 1', 'comercial2': '🛒 Mercado Nível 2', 'comercial3': '🏬 Shopping Nível 3', 'comercial4': '🏢 Centro Empresarial', 'industrial': '🏭 Indústria', 'robotica': '🤖 Lab. de Robótica', 'escola': '🏫 Escola', 'universidade': '🎓 Universidade', 'hospital': '🏥 Hospital', 'policia': '🚓 Polícia', 'reciclagem': '♻️ Centro de Reciclagem', 'festival': '🦀 Festival Manguebeat', 'parque': '🌳 Parque Municipal', 'terminal': '🚌 Terminal' };
 
     listaPredios.forEach(p => {
         let info = catalogo[p.tipo]; 
@@ -1412,7 +1408,6 @@ function motorEconomia() {
                     p.dom.title = utilTooltip + (estGeral ? "⚠️ Rua isolada da Rodovia Central." : "⚠️ Sem acesso à rua!"); 
                     stats.despesaManutencao += (info.manutencao || 0) * 0.5;
                 } else {
-                    // REVISÃO 3.1: CONTAMINAÇÃO HÍDRICA
                     if (p.tipo === 'agua' && estaPoluido(p)) {
                         p.dom.classList.add('inativo', 'poluido');
                         p.dom.title = utilTooltip + "☢️ ÁGUA CONTAMINADA!";
@@ -1572,21 +1567,23 @@ function motorEconomia() {
     let valExportacao = Math.max(0, stats.energiaG - stats.energiaU) + Math.max(0, stats.aguaG - stats.aguaU); 
     stats.rendaExportacao = (techs.livre_comercio ? valExportacao * 2 : valExportacao) * (techs.logistica ? 1.2 : 1.0);
     
-    // REVISÃO 3.1: MATEMÁTICA LENTA E SEM EFEITO ELÁSTICO
+    let tetoRes = techs.imposto_prog ? 15 : 10;
+    let tetoCom = techs.imposto_prog ? 20 : 15;
+    let tetoInd = techs.imposto_prog ? 30 : 25;
+    
     let deltaImpostos = 0;
-    if (taxas.res < 8) deltaImpostos += 0.1; else if (taxas.res > 10) deltaImpostos -= 1;
-    if (taxas.com < 11) deltaImpostos += 0.1; else if (taxas.com > 15) deltaImpostos -= 1;
-    if (taxas.ind < 20) deltaImpostos += 0.1; else if (taxas.ind > 25) deltaImpostos -= 1;
+    if (taxas.res < 8) deltaImpostos += 0.1; else if (taxas.res > tetoRes) deltaImpostos -= 1;
+    if (taxas.com < 11) deltaImpostos += 0.1; else if (taxas.com > tetoCom) deltaImpostos -= 1;
+    if (taxas.ind < 20) deltaImpostos += 0.1; else if (taxas.ind > tetoInd) deltaImpostos -= 1;
     
     let crimeRestante = Math.max(0, stats.crime - stats.forcaPolicial);
-    let isEarlyGame = !primeiraNoitePassou; // A imunidade agora acaba na primeira noite
+    let isEarlyGame = !primeiraNoitePassou; 
     
     if (stats.adultos === 0) {
         feedbackAprovacaoMensagem = "👻 Cidade Fantasma"; 
         feedbackAprovacaoCor = "#bdc3c7";
     } else {
         
-        // No Early Game, a aprovação simplesmente não cai por problemas estruturais
         if (isEarlyGame && deltaAprovacao < 0) {
             deltaAprovacao = 0; 
         }
@@ -1640,6 +1637,7 @@ function motorEconomia() {
     atualizarUI();
 }
 
+// REVISÃO 3.1.2: EVOLUÇÃO E DOWNGRADE DO NOVO COMÉRCIO NÍVEL 4
 function motorFisica() {
     if (!jogoRodando || jogoPausado || tempoPausado) return; 
     
@@ -1651,12 +1649,13 @@ function motorFisica() {
             poluido = estaPoluido(p);
         }
         
-        // REVISÃO 3.1: DOWNGRADES (Se o valor do terreno afundar, os prédios de luxo entram em ruína)
+        // DOWNGRADES
         if (p.tipo === 'residencial2' && valTerreno < 30) executarDowngrade(p, 'residencial');
         else if (p.tipo === 'residencial3' && valTerreno < 55) executarDowngrade(p, 'residencial');
         else if (p.tipo === 'residencial4' && valTerreno < 80) executarDowngrade(p, 'residencial');
         else if (p.tipo === 'comercial2' && valTerreno < 25) executarDowngrade(p, 'comercial');
         else if (p.tipo === 'comercial3' && valTerreno < 50) executarDowngrade(p, 'comercial');
+        else if (p.tipo === 'comercial4' && valTerreno < 80) executarDowngrade(p, 'comercial');
         
         // UPGRADES
         else if (!poluido) { 
@@ -1672,6 +1671,8 @@ function motorFisica() {
                 tentarUpgrade(p, 'comercial2'); 
             } else if (p.tipo === 'comercial2' && techs.shopping && valTerreno >= 50 && Math.floor(recursos.aprovacao) >= 80) { 
                 tentarUpgrade(p, 'comercial3'); 
+            } else if (p.tipo === 'comercial3' && techs.metropole_vertical && valTerreno >= 80 && Math.floor(recursos.aprovacao) >= 90) { 
+                tentarUpgrade(p, 'comercial4'); 
             }
         }
     });
